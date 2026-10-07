@@ -11,7 +11,7 @@ function deps(options: { denied?: boolean } = {}): StudioDependencies {
     analyzer:{analyze:async()=>({duration:2,features:{loudness:.75,dynamics:.55,pitch:.8,zeroCrossing:.62,pauseRatio:.12,tempoVariation:.6}})},
     cropper:{inspect:async()=>({duration:2,needsCrop:false}),crop:async(blob,range)=>({blob,duration:range.end-range.start})},
     renderer:{render:async()=>new Blob(['cover'],{type:'image/png'})},
-    repository:{list:async()=>works,save:async(m)=>{works.push(m)},rename:async()=>{},delete:async(id)=>{const i=works.findIndex(w=>w.id===id);if(i>=0)works.splice(i,1)}},
+    repository:{list:async()=>works,get:async(id:string)=>works.find(w=>w.id===id),save:async(m)=>{const i=works.findIndex(w=>w.id===m.id);if(i>=0)works[i]=m;else works.push(m)},rename:async()=>{},delete:async(id)=>{const i=works.findIndex(w=>w.id===id);if(i>=0)works.splice(i,1)}},
     share:{share:async()=> 'shared'},
   };
 }
@@ -32,5 +32,17 @@ describe('Voice meme App', () => {
     await wrapper.get('[data-testid="analyze"]').trigger('click'); await Promise.resolve(); await wrapper.get('[data-emotion="温柔姐姐"]').trigger('click'); expect(wrapper.text()).toContain('已手动选择');
     await wrapper.get('[data-testid="to-cover"]').trigger('click'); await wrapper.get('[aria-label="气泡文字"]').setValue('轻轻说一句'); await wrapper.get('[data-testid="save-work"]').trigger('click'); await Promise.resolve(); await Promise.resolve();
     expect(wrapper.text()).toContain('作品集'); expect(wrapper.text()).toContain('我的声音表情');
+  });
+  it('offers update vs copy when editing a saved work and update keeps a single record', async () => {
+    const wrapper=mount(App,{props:{dependencies:deps()}}); await wrapper.get('[data-testid="record"]').trigger('click'); await wrapper.get('[data-testid="stop"]').trigger('click'); await Promise.resolve();
+    await wrapper.get('[data-testid="analyze"]').trigger('click'); await Promise.resolve(); await wrapper.get('[data-emotion="温柔姐姐"]').trigger('click');
+    await wrapper.get('[data-testid="to-cover"]').trigger('click'); await wrapper.get('[data-testid="save-work"]').trigger('click'); await Promise.resolve(); await Promise.resolve();
+    expect(wrapper.text()).toContain('作品集');
+    await wrapper.get('footer button').trigger('click'); await Promise.resolve();
+    expect(wrapper.get('[data-testid="save-work"]').text()).toContain('更新原作');
+    expect(wrapper.get('[data-testid="save-copy"]').text()).toContain('另存');
+    await wrapper.get('[data-testid="save-work"]').trigger('click'); await Promise.resolve(); await Promise.resolve();
+    expect(wrapper.text()).toContain('原作已更新');
+    expect(wrapper.findAll('.work-card')).toHaveLength(1);
   });
 });

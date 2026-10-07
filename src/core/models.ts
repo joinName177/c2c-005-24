@@ -24,6 +24,8 @@ export interface VoiceMeme {
   cover: Blob;
   coverConfig: CoverConfig;
   createdAt: string;
+  /** 最近一次真实写入的时间；历史记录可能缺失，缺失时不得伪造 */
+  updatedAt?: string;
 }
 
 export function validateCropRange(range: CropRange, duration: number): string | undefined {
