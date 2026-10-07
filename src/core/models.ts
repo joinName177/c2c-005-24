@@ -13,8 +13,7 @@ export interface CoverConfig {
   filter: 'none' | 'mono' | 'saturate' | 'warm' | 'cool';
   ratio: 'square' | 'portrait';
 }
-export interface VoiceMeme {
-  id: string;
+export interface MemeContent {
   title: string;
   emotion: EmotionLabel;
   confidence: number;
@@ -23,7 +22,38 @@ export interface VoiceMeme {
   duration: number;
   cover: Blob;
   coverConfig: CoverConfig;
+}
+export interface VoiceMeme extends MemeContent {
+  id: string;
   createdAt: string;
+  /** 最近修改时间；旧记录可能缺失，读取时按 createdAt 回退，绝不回填伪造 */
+  updatedAt?: string;
+}
+
+let idSequence = 0;
+export function createMemeId(now: () => Date = () => new Date()): string {
+  const stamp = now().getTime();
+  idSequence += 1;
+  return `meme-${stamp}-${idSequence.toString(36)}`;
+}
+/** 新建作品（含另存副本）：创建时间与修改时间同为 now */
+export function createMeme(id: string, content: MemeContent, now: string): VoiceMeme {
+  return { id, ...content, createdAt: now, updatedAt: now };
+}
+/** 更新原作：身份与创建时间不变，只换内容并记录最近修改时间 */
+export function reviseMeme(current: Pick<VoiceMeme, 'id' | 'createdAt'>, content: MemeContent, now: string): VoiceMeme {
+  return { ...content, id: current.id, createdAt: current.createdAt, updatedAt: now };
+}
+/** 另存副本：以 now 为创建时刻的全新独立作品，源记录不被修改 */
+export function copyMeme(content: MemeContent, now: string, newId: string = createMemeId()): VoiceMeme {
+  return createMeme(newId, content, now);
+}
+/** 作品集排序键：缺少 updatedAt 的旧记录回退到 createdAt，不伪造修改时间 */
+export function memeModifiedAt(meme: VoiceMeme): string {
+  return meme.updatedAt ?? meme.createdAt;
+}
+export function sortMemes(memes: VoiceMeme[]): VoiceMeme[] {
+  return [...memes].sort((a, b) => memeModifiedAt(b).localeCompare(memeModifiedAt(a)));
 }
 
 export function validateCropRange(range: CropRange, duration: number): string | undefined {
